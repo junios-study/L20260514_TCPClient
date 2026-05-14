@@ -33,6 +33,17 @@ void SendAll(SOCKET ReceiverSocket, char* Data, int Size)
 	} while (TotalSendDataSize < WantSendDataSize);
 }
 
+void ProcessPositionPacket(SOCKET SenderSocket, int DataSize)
+{
+	PositionData Data;
+
+	int RecvBytes = recv(SenderSocket, (char*)&Data, DataSize, MSG_WAITALL);
+	Data.X = ntohl(Data.X);
+	Data.Y = ntohl(Data.Y);
+
+	printf("Player Position(%d, %d)\n", Data.X, Data.Y);
+}
+
 
 int main()
 {
@@ -51,15 +62,14 @@ int main()
 	int RecvBufferSize = 0;
 	int BufferSizeLength = sizeof(SendBufferSize);
 
-	getsockopt(ServerSocket, SOL_SOCKET, SO_SNDBUF, (char*)&SendBufferSize, &BufferSizeLength);
-	printf("Send Buffer Size: %d\n", SendBufferSize);
+	//getsockopt(ServerSocket, SOL_SOCKET, SO_SNDBUF, (char*)&SendBufferSize, &BufferSizeLength);
+	//printf("Send Buffer Size: %d\n", SendBufferSize);
 
-	SendBufferSize = 4;
-	setsockopt(ServerSocket, SOL_SOCKET, SO_SNDBUF, (char*)&SendBufferSize, BufferSizeLength);
+	//SendBufferSize = 4;
+	//setsockopt(ServerSocket, SOL_SOCKET, SO_SNDBUF, (char*)&SendBufferSize, BufferSizeLength);
 
-	getsockopt(ServerSocket, SOL_SOCKET, SO_SNDBUF, (char*)&SendBufferSize, &BufferSizeLength);
-	printf("Send Buffer Size: %d\n", SendBufferSize);
-
+	//getsockopt(ServerSocket, SOL_SOCKET, SO_SNDBUF, (char*)&SendBufferSize, &BufferSizeLength);
+	//printf("Send Buffer Size: %d\n", SendBufferSize);
 
 	//getsockopt(ServerSocket, SOL_SOCKET, SO_RCVBUF, (char*)&RecvBufferSize, &BufferSizeLength);
 	//printf("Receive Buffer Size: %d\n", RecvBufferSize);
@@ -85,8 +95,20 @@ int main()
 
 		SendAll(ServerSocket, Buffer, sizeof(Header) + sizeof(Data));
 
-		//OS 버퍼에서 가져올수 있는 만큼 가져올때까지 기다린다.
-		int RecvBytes = recv(ServerSocket, Buffer, sizeof(Buffer), 0);
+		
+		//Header
+		//4byte
+		int RecvBytes = recv(ServerSocket, (char*)&Header, sizeof(Header), MSG_WAITALL);
+		Header.Size = ntohs(Header.Size);
+		Header.Code = ntohs(Header.Code);
+
+		switch ((PacketType)(Header.Code))
+		{
+			case PacketType::Position:
+				ProcessPositionPacket(ServerSocket, Header.Size);
+				break;
+		}
+		
 	}
 
 	closesocket(ServerSocket);
